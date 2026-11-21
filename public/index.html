@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://openrouter.ai">
+  <title>AskDB</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ WELCOME ============ -->
+<section id="welcome" class="screen hidden">
+  <div class="welcome-card">
+    <div class="brand big"><span class="logo">◆</span> AskDB</div>
+    <p class="muted center">Talk to your database in plain English. No technical knowledge needed.</p>
+
+    <div class="steps"><span id="dot1" class="dot active">1</span><span class="line"></span><span id="dot2" class="dot">2</span></div>
+
+    <!-- Step 1: AI key -->
+    <div id="step1" class="step">
+      <h2>Connect the AI</h2>
+      <p class="muted">Paste your OpenRouter key. It lets AskDB understand your questions.</p>
+      <input id="w-key" type="password" placeholder="sk-or-..." autocomplete="off">
+      <p class="hint">Don't have one? <a href="#" data-link="https://openrouter.ai/keys">Get a key from OpenRouter</a>, then copy and paste it here.</p>
+      <div class="notice">🔒 Your key and database links are saved only in this browser on this device. To answer your questions, your question and small parts of your data are sent to the AI.</div>
+      <div id="w-key-msg" class="msg"></div>
+      <button id="w-key-next" class="btn primary wide">Continue</button>
+    </div>
+
+    <!-- Step 2: database -->
+    <div id="step2" class="step hidden">
+      <h2 id="step2-title">Connect your database</h2>
+      <p class="muted">Paste your database link. You'll find it in your database provider's dashboard, usually called a "connection string".</p>
+      <input id="w-cs" type="password" placeholder="postgresql://user:password@host:5432/database" autocomplete="off">
+      <input id="w-name" type="text" placeholder="Give it a name, e.g. My Shop (optional)">
+      <div id="w-cs-msg" class="msg"></div>
+      <div class="row">
+        <button id="w-back" class="btn ghost">Back</button>
+        <button id="w-connect" class="btn primary grow">Test &amp; Connect</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHAT ============ -->
+<section id="chat" class="screen hidden">
+  <header class="topbar">
+    <button id="toggle-side" class="icon-btn" title="Show or hide tables">☰</button>
+    <div class="brand"><span class="logo">◆</span> AskDB</div>
+
+    <div class="db-switch">
+      <button id="db-btn" class="db-btn"><span class="db-dot"></span><span id="db-name">…</span><span class="caret">▾</span></button>
+      <div id="db-menu" class="menu hidden"></div>
+    </div>
+    <button id="ro-btn" class="ro-btn" title="Turn read-only mode on or off for this database"></button>
+
+    <div class="spacer"></div>
+    <div class="model-switch">
+      <button id="model-btn" class="db-btn model-btn" title="Choose which AI answers your questions"><span class="muted">AI:</span><span id="model-name">…</span><span class="caret">▾</span></button>
+      <div id="model-menu" class="menu right hidden"></div>
+    </div>
+    <button id="new-chat" class="btn ghost small" title="Clear this conversation">New chat</button>
+    <button id="settings-btn" class="icon-btn" title="Settings">⚙</button>
+  </header>
+
+  <div class="body">
+    <aside id="side" class="side">
+      <div class="side-title">Tables</div>
+      <input id="table-filter" class="table-filter" placeholder="Search tables">
+      <div id="table-list" class="table-list"></div>
+    </aside>
+
+    <main class="main">
+      <div id="messages" class="messages"></div>
+      <div class="composer-wrap">
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="Ask anything about your data…"></textarea>
+          <button id="mic" class="mic" title="Speak your question">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
+          </button>
+          <button id="send" class="send" title="Send">➤</button>
+        </div>
+        <div id="foot" class="foot muted"></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<div id="settings" class="overlay hidden">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label>OpenRouter key</label>
+    <input id="s-key" type="password" autocomplete="off">
+    <label>AI model <span class="muted">(leave as is if unsure)</span></label>
+    <input id="s-model" type="text">
+    <div id="s-msg" class="msg"></div>
+    <div class="row">
+      <button id="s-remove" class="btn danger-ghost">Remove current database</button>
+      <div class="spacer"></div>
+      <button id="s-cancel" class="btn ghost">Cancel</button>
+      <button id="s-save" class="btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/chart.umd.min.js"></script>
+<script src="api-web.js"></script>
+<script src="format.js"></script>
+<script src="agent.js"></script>
+<script src="voice.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

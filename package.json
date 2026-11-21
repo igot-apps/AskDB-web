@@ -1,0 +1,10 @@
+{
+  "name": "askdb-web",
+  "version": "1.0.0",
+  "description": "AskDB in the browser: talk to your PostgreSQL database in plain English",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "pg": "^8.23.1" }
+}
