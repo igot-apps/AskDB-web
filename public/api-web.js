@@ -86,6 +86,20 @@
   // On phones, start with the tables list hidden (☰ shows it).
   document.addEventListener('DOMContentLoaded', () => {
     if (window.innerWidth < 820) document.getElementById('side')?.classList.add('collapsed');
+    // Lock button: forgets the AskDB password on this browser, so it must be typed again.
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+      const lock = document.createElement('button');
+      lock.className = 'icon-btn';
+      lock.title = 'Lock AskDB (forget the password on this browser)';
+      lock.textContent = '🔐';
+      lock.onclick = () => {
+        if (!confirm('Lock AskDB?\n\nThe password will be forgotten on this browser and you will need to type it again.')) return;
+        try { localStorage.removeItem(PASS); } catch {}
+        location.reload();
+      };
+      settingsBtn.before(lock);
+    }
   });
 
   // ---------- The same interface the desktop app uses ----------
