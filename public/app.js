@@ -510,9 +510,10 @@
     micState = s;
     $('mic').className = `mic ${s}`;
     $('mic').title = s === 'recording' ? 'Click when you finish speaking' : s === 'working' ? 'Turning your voice into text…' : 'Speak your question';
-    input.placeholder = s === 'recording' ? 'Listening… click the red button when you finish speaking'
+    input.placeholder = s === 'recording' ? 'Listening… tap the red mic when done, or ✕ to cancel'
       : s === 'working' ? 'Turning your voice into text…' : PLACEHOLDER;
     $('send').disabled = s !== 'idle' || state.busy;
+    $('mic-cancel').classList.toggle('hidden', s !== 'recording');
   }
   function flashNote(text) {
     const foot = $('foot'), old = foot.textContent;
@@ -538,6 +539,14 @@
     if (!state.settings.apiKey) return openSettings();
     try { setMic('recording'); await window.voice.start(finishVoice); }
     catch (e) { setMic('idle'); flashNote(e.message); }
+  };
+
+  // Cancel: throw the recording away (for accidental taps).
+  $('mic-cancel').onclick = () => {
+    if (micState !== 'recording') return;
+    try { window.voice.cancel(); } catch {}
+    setMic('idle');
+    input.focus();
   };
 
   $('new-chat').onclick = async () => {
