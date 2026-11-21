@@ -100,6 +100,10 @@
     <label>AI model <span class="muted">(leave as is if unsure)</span></label>
     <select id="s-model-pick"></select>
     <input id="s-model" type="text" class="hidden" placeholder="e.g. mistralai/mistral-large" style="margin-top:8px">
+    <label>PIN lock <span class="muted">(6 digits)</span></label>
+    <div class="pin-row"><span id="pin-status" class="muted small">Off</span><div class="spacer"></div>
+      <button id="pin-remove" class="btn danger-ghost small hidden">Remove</button>
+      <button id="pin-set" class="btn ghost small">Set PIN</button></div>
     <div id="s-msg" class="msg"></div>
     <div class="row">
       <button id="s-remove" class="btn danger-ghost">Remove current database</button>

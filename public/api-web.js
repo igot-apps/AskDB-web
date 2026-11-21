@@ -93,7 +93,7 @@
           const r = await server('ping', {}, p);
           btn.disabled = false;
           if (!r.ok) { msg.textContent = r.error === 'Wrong password.' ? "That password isn't right. Try again." : r.error; msg.className = 'msg error'; return; }
-          try { localStorage.setItem(PASS, p); } catch {}
+          try { localStorage.setItem(PASS, p); localStorage.setItem('askdb-last-active', String(Date.now())); } catch {}
           touchPassword();
           wrap.remove();
           resolve();
@@ -124,9 +124,174 @@
     }
   });
 
+  // ---------- PIN lock ----------
+  // A 6-digit PIN that is asked for after 5 minutes without using AskDB.
+  // Only a salted fingerprint (hash) of the PIN is saved, never the PIN itself.
+  const PIN = 'askdb-pin', ACTIVE = 'askdb-last-active';
+  const PIN_IDLE = 5 * 60 * 1000, PIN_TRIES = 5;
+  let pinLocked = false, pinWait = null;
+
+  const pinData = () => load(PIN, null);
+  const hasPin = () => { const d = pinData(); return !!(d && d.hash && d.salt); };
+  const hex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  async function hashPin(pin, salt) {
+    return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`)));
+  }
+  async function pinMatches(pin) {
+    const d = pinData();
+    return !!d && (await hashPin(pin, d.salt)) === d.hash;
+  }
+  async function savePin(pin) {
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    store(PIN, { salt, hash: await hashPin(pin, salt), tries: 0 });
+  }
+  const validPin = (v) => /^\d{6}$/.test(v);
+  function markActive() { if (!pinLocked) try { localStorage.setItem(ACTIVE, String(Date.now())); } catch {} }
+  function idleTooLong() {
+    try { return Date.now() - Number(localStorage.getItem(ACTIVE) || 0) > PIN_IDLE; } catch { return true; }
+  }
+  function signOutFully() { forgetPassword(); try { localStorage.removeItem(PIN); } catch {} location.reload(); }
+
+  function pinField(id, placeholder) {
+    return `<input id="${id}" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="${placeholder}">`;
+  }
+  function onlyDigits(input) { input.addEventListener('input', () => { input.value = input.value.replace(/\D/g, '').slice(0, 6); }); }
+
+  // Full-screen lock. Resolves once the right PIN is typed.
+  function showPinLock() {
+    if (pinWait) return pinWait;
+    pinLocked = true;
+    document.querySelectorAll('.overlay:not(.pin-lock)').forEach(o => o.classList.add('pin-hidden'));
+    pinWait = new Promise((resolve) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'overlay pin-lock';
+      wrap.innerHTML = `<div class="modal pin-modal">
+          <div class="brand big" style="margin-bottom:4px"><span class="logo">◆</span> AskDB</div>
+          <p class="muted" style="text-align:center;margin:0 0 16px">AskDB is locked. Enter your 6-digit PIN.</p>
+          ${pinField('pin-unlock', '••••••')}
+          <div class="msg" style="text-align:center"></div>
+          <button class="btn primary wide" data-a="go">Unlock</button>
+          <button class="btn link wide" data-a="forgot">Forgot PIN? Use your password instead</button>
+        </div>`;
+      document.body.appendChild(wrap);
+      const input = wrap.querySelector('input'), msg = wrap.querySelector('.msg'), btn = wrap.querySelector('[data-a=go]');
+      onlyDigits(input);
+      setTimeout(() => input.focus(), 50);
+      let checking = false;
+      const go = async () => {
+        if (checking) return;
+        const v = input.value;
+        if (!validPin(v)) { msg.textContent = 'Please enter all 6 digits.'; msg.className = 'msg error'; return; }
+        checking = true; btn.disabled = true;
+        const right = await pinMatches(v);
+        checking = false; btn.disabled = false;
+        const d = pinData() || {};
+        if (!right) {
+          d.tries = (d.tries || 0) + 1; store(PIN, d);
+          input.value = '';
+          if (d.tries >= PIN_TRIES) {
+            msg.textContent = 'Too many wrong PINs. Please sign in with your password.'; msg.className = 'msg error';
+            setTimeout(signOutFully, 1500);
+            return;
+          }
+          const left = PIN_TRIES - d.tries;
+          msg.textContent = `Wrong PIN. ${left} ${left === 1 ? 'try' : 'tries'} left.`; msg.className = 'msg error';
+          return;
+        }
+        d.tries = 0; store(PIN, d);
+        pinLocked = false; pinWait = null;
+        markActive();
+        wrap.remove();
+        document.querySelectorAll('.pin-hidden').forEach(o => o.classList.remove('pin-hidden'));
+        resolve();
+      };
+      btn.onclick = go;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      input.addEventListener('input', () => { if (validPin(input.value)) go(); });
+      wrap.querySelector('[data-a=forgot]').onclick = () => {
+        if (confirm('Sign in with your password instead?\n\nYour PIN will be removed. You can set a new one in Settings.')) signOutFully();
+      };
+    });
+    return pinWait;
+  }
+
+  async function pinGate() { if (hasPin() && idleTooLong()) await showPinLock(); markActive(); }
+
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev =>
+    document.addEventListener(ev, markActive, { capture: true, passive: true }));
+  function checkIdle() { if (hasPin() && !pinLocked && getPassword() && idleTooLong()) showPinLock(); }
+  setInterval(checkIdle, 15 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkIdle(); });
+
+  // Settings: set, change or remove the PIN.
+  function smallDialog(html) {
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.style.zIndex = 60;
+    wrap.innerHTML = `<div class="modal" style="max-width:400px">${html}</div>`;
+    document.body.appendChild(wrap);
+    wrap.querySelectorAll('.pin-input').forEach(onlyDigits);
+    wrap.querySelector('input').focus();
+    wrap.querySelector('[data-a=no]').onclick = () => wrap.remove();
+    const msg = wrap.querySelector('.msg');
+    return { wrap, val: (id) => wrap.querySelector('#' + id).value, err: (t) => { msg.textContent = t; msg.className = 'msg error'; } };
+  }
+  function pinDialog() {
+    const had = hasPin();
+    const d = smallDialog(`<h2>${had ? 'Change PIN' : 'Set a PIN'}</h2>
+        <p class="muted" style="margin:0 0 12px">AskDB will ask for this 6-digit PIN after 5 minutes without use.</p>
+        ${had ? `<label>Current PIN</label>${pinField('pin-old', '••••••')}` : ''}
+        <label>New PIN</label>${pinField('pin-new', '6 digits')}
+        <label>Type it again</label>${pinField('pin-new2', '6 digits')}
+        <div class="msg"></div>
+        <div class="row"><div class="spacer"></div>
+          <button class="btn ghost" data-a="no">Cancel</button>
+          <button class="btn primary" data-a="yes">Save PIN</button></div>`);
+    d.wrap.querySelector('[data-a=yes]').onclick = async () => {
+      if (had && !(await pinMatches(d.val('pin-old')))) return d.err("The current PIN isn't right.");
+      if (!validPin(d.val('pin-new'))) return d.err('The new PIN must be exactly 6 digits.');
+      if (d.val('pin-new') !== d.val('pin-new2')) return d.err("The two PINs don't match.");
+      await savePin(d.val('pin-new'));
+      markActive();
+      d.wrap.remove();
+      refreshPinRow();
+    };
+  }
+  function removePinDialog() {
+    const d = smallDialog(`<h2>Remove PIN?</h2>
+        <p class="muted" style="margin:0 0 12px">Enter your current PIN to turn the PIN lock off.</p>
+        ${pinField('pin-old', '••••••')}
+        <div class="msg"></div>
+        <div class="row"><div class="spacer"></div>
+          <button class="btn ghost" data-a="no">Cancel</button>
+          <button class="btn danger" data-a="yes">Remove PIN</button></div>`);
+    d.wrap.querySelector('[data-a=yes]').onclick = async () => {
+      if (!(await pinMatches(d.val('pin-old')))) return d.err("That PIN isn't right.");
+      try { localStorage.removeItem(PIN); } catch {}
+      d.wrap.remove();
+      refreshPinRow();
+    };
+  }
+  function refreshPinRow() {
+    const st = document.getElementById('pin-status');
+    if (!st) return;
+    const on = hasPin();
+    st.textContent = on ? 'On: asks for your PIN after 5 minutes away' : 'Off';
+    document.getElementById('pin-set').textContent = on ? 'Change PIN' : 'Set PIN';
+    document.getElementById('pin-remove').classList.toggle('hidden', !on);
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const set = document.getElementById('pin-set');
+    if (!set) return;
+    set.onclick = pinDialog;
+    document.getElementById('pin-remove').onclick = removePinDialog;
+    document.getElementById('settings-btn').addEventListener('click', refreshPinRow);
+    refreshPinRow();
+  });
+
   // ---------- The same interface the desktop app uses ----------
   window.api = {
-    async getSettings() { await ensurePassword(); return ok(readSettings()); },
+    async getSettings() { await ensurePassword(); await pinGate(); return ok(readSettings()); },
     async saveSettings(patch) { return ok(writeSettings({ ...readSettings(), ...patch })); },
 
     async testConnection(cs) { return server('test', { cs }); },

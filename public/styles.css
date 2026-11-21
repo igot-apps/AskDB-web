@@ -328,6 +328,16 @@ td.null { color: var(--muted); }
 .modal h2 { margin: 0 0 14px; font-size: 20px; }
 .modal label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
 
+/* ---------- PIN lock ---------- */
+.pin-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pin-input { text-align: center; font-size: 22px !important; letter-spacing: .45em; padding: 12px; font-variant-numeric: tabular-nums; }
+.overlay.pin-lock { align-items: center; }
+.pin-lock { z-index: 100; background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.pin-modal { max-width: 380px; box-shadow: var(--shadow); }
+.pin-hidden { display: none !important; }
+.btn.link { background: none; color: var(--muted); font-weight: 500; font-size: 13px; margin-top: 6px; }
+.btn.link:hover { color: var(--accent); }
+
 /* ---------- Polish ---------- */
 html { -webkit-text-size-adjust: 100%; }
 .screen { height: 100vh; height: 100dvh; }
