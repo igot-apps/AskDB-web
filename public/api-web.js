@@ -98,7 +98,8 @@
       const r = await server('test', { cs: cs.trim() });
       if (!r.ok) return r;
       const s = readSettings();
-      const conn = { id: `db_${Date.now()}`, name: (name || '').trim() || 'My database', cs: cs.trim() };
+      // New databases start read-only: they may be production databases.
+      const conn = { id: `db_${Date.now()}`, name: (name || '').trim() || 'My database', cs: cs.trim(), readOnly: true };
       s.connections.push(conn); s.activeId = conn.id; writeSettings(s);
       return ok({ conn, info: r.data });
     },
@@ -108,6 +109,38 @@
       if (s.activeId === id) { s.activeId = s.connections[0]?.id || null; currentCs = null; }
       try { localStorage.removeItem(`askdb-history-${id}`); } catch {}
       return ok(writeSettings(s));
+    },
+    // Ask for the AskDB password before allowing changes. Wrong guesses count toward the server lockout.
+    confirmUnlock(dbName) {
+      return new Promise((resolve) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'overlay';
+        wrap.innerHTML = `<div class="modal" style="max-width:420px">
+            <h2>Allow changes?</h2>
+            <p class="muted" style="margin:0 0 14px">Enter your AskDB password to allow changes to <b></b>. AskDB will still ask you to confirm every change, and it can never change table structure.</p>
+            <input type="password" placeholder="Password" autocomplete="current-password">
+            <div class="msg"></div>
+            <div class="row"><div class="spacer"></div>
+              <button class="btn ghost" data-a="no">Cancel</button>
+              <button class="btn primary" data-a="yes">Allow changes</button></div>
+          </div>`;
+        wrap.querySelector('b').textContent = dbName;
+        document.body.appendChild(wrap);
+        const input = wrap.querySelector('input'), msg = wrap.querySelector('.msg'), yes = wrap.querySelector('[data-a=yes]');
+        const done = (v) => { wrap.remove(); resolve(v); };
+        input.focus();
+        const go = async () => {
+          if (!input.value) { msg.textContent = 'Please enter the password.'; msg.className = 'msg error'; return; }
+          yes.disabled = true; msg.textContent = 'Checking…'; msg.className = 'msg';
+          const r = await server('ping', {}, input.value);
+          yes.disabled = false;
+          if (r.ok) return done(true);
+          msg.textContent = r.error === 'Wrong password.' ? "That password isn't right." : r.error; msg.className = 'msg error';
+        };
+        yes.onclick = go;
+        wrap.querySelector('[data-a=no]').onclick = () => done(false);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); if (e.key === 'Escape') done(false); });
+      });
     },
     async setReadOnly(id, readOnly) {
       const s = readSettings();

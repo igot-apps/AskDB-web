@@ -172,7 +172,13 @@
   $('ro-btn').onclick = async () => {
     const c = state.settings.connections.find(x => x.id === state.settings.activeId);
     if (!c || state.busy) return;
-    if (c.readOnly && !confirm(`Allow changes to "${c.name}"?\n\nAskDB will still ask you to confirm every change before it happens.`)) return;
+    if (c.readOnly) {
+      // The web version asks for the password; the desktop app asks for a simple confirmation.
+      const allowed = window.api.confirmUnlock
+        ? await window.api.confirmUnlock(c.name)
+        : confirm(`Allow changes to "${c.name}"?\n\nAskDB will still ask you to confirm every change before it happens.`);
+      if (!allowed) return;
+    }
     const r = await window.api.setReadOnly(c.id, !c.readOnly);
     if (r.ok) { state.settings = r.data; state.conn = state.settings.connections.find(x => x.id === c.id); renderDbMenu(); }
   };
