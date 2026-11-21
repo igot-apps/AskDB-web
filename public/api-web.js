@@ -112,7 +112,7 @@
     const settingsBtn = document.getElementById('settings-btn');
     if (settingsBtn) {
       const lock = document.createElement('button');
-      lock.className = 'icon-btn';
+      lock.className = 'icon-btn'; lock.id = 'lock-btn';
       lock.title = 'Lock AskDB (forget the password on this browser)';
       lock.textContent = '🔐';
       lock.onclick = () => {

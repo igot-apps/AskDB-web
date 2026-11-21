@@ -237,9 +237,13 @@
   $('table-filter').oninput = () => state.schema && renderTables();
   $('table-list').onclick = (e) => {
     const b = e.target.closest('.table-item');
-    if (b && !state.busy) send(`Show me the ${b.dataset.name} table`);
+    if (b && !state.busy) {
+      if (window.innerWidth <= 820) $('side').classList.add('collapsed'); // phones: close the panel to show the answer
+      send(`Show me the ${b.dataset.name} table`);
+    }
   };
   $('toggle-side').onclick = () => $('side').classList.toggle('collapsed');
+  $('side-backdrop').onclick = () => $('side').classList.add('collapsed');
 
   // ---------- Messages ----------
   function suggestions() {
