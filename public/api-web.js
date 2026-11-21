@@ -22,7 +22,27 @@
   const activeConn = () => { const s = readSettings(); return s.connections.find(c => c.id === s.activeId); };
 
   // ---------- Password gate ----------
-  function getPassword() { try { return localStorage.getItem(PASS) || ''; } catch { return ''; } }
+  // The password is forgotten after 1 hour without using AskDB (auto-lock).
+  const PASS_TIME = 'askdb-password-time';
+  const IDLE_LIMIT = 60 * 60 * 1000;
+  function forgetPassword() { try { localStorage.removeItem(PASS); localStorage.removeItem(PASS_TIME); } catch {} }
+  function touchPassword() { try { localStorage.setItem(PASS_TIME, String(Date.now())); } catch {} }
+  function passwordExpired() {
+    try { return Date.now() - Number(localStorage.getItem(PASS_TIME) || 0) > IDLE_LIMIT; } catch { return true; }
+  }
+  function getPassword() {
+    try {
+      const p = localStorage.getItem(PASS) || '';
+      if (p && passwordExpired()) { forgetPassword(); return ''; }
+      return p;
+    } catch { return ''; }
+  }
+  // Lock an open page once the hour runs out.
+  setInterval(() => {
+    let has = false;
+    try { has = !!localStorage.getItem(PASS); } catch {}
+    if (has && passwordExpired()) { forgetPassword(); location.reload(); }
+  }, 60 * 1000);
 
   async function server(action, payload = {}, password = getPassword()) {
     let res;
@@ -39,11 +59,12 @@
     try { body = await res.json(); } catch {}
     if (res.status === 401) {
       if (action === 'ping') return fail('Wrong password.');
-      try { localStorage.removeItem(PASS); } catch {}
+      forgetPassword();
       setTimeout(() => location.reload(), 1500);
       return fail('Your AskDB password is no longer correct. Please enter it again.');
     }
     if (!body || typeof body.ok !== 'boolean') return fail(`The AskDB server had a problem (code ${res.status}). Please try again in a minute.`);
+    if (res.ok && password === getPassword()) touchPassword(); // still in use, restart the 1-hour timer
     return body;
   }
 
@@ -73,6 +94,7 @@
           btn.disabled = false;
           if (!r.ok) { msg.textContent = r.error === 'Wrong password.' ? "That password isn't right. Try again." : r.error; msg.className = 'msg error'; return; }
           try { localStorage.setItem(PASS, p); } catch {}
+          touchPassword();
           wrap.remove();
           resolve();
         };
@@ -95,7 +117,7 @@
       lock.textContent = '🔐';
       lock.onclick = () => {
         if (!confirm('Lock AskDB?\n\nThe password will be forgotten on this browser and you will need to type it again.')) return;
-        try { localStorage.removeItem(PASS); } catch {}
+        forgetPassword();
         location.reload();
       };
       settingsBtn.before(lock);
