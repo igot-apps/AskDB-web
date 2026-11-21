@@ -20,7 +20,7 @@
           type: 'object',
           properties: {
             sql: { type: 'string' },
-            show_to_user: { type: 'boolean', description: 'true if this result directly answers the user (it will be shown as a table). false for exploratory/helper queries.' },
+            show_to_user: { type: 'boolean', description: 'true ONLY if the user clearly asked to see records, a list, a table, a chart or a download (e.g. "show me", "list", "display", "table"). false for everything else, including counts, totals, single facts and helper queries: answer those in your text.' },
             chart: { type: 'string', enum: ['none', 'bar', 'line', 'pie'], description: 'Suggest a chart when the result is a label column plus numeric column(s) and a chart helps (trends -> line, comparisons -> bar, share of total with <8 items -> pie).' },
           },
           required: ['sql', 'show_to_user'],
@@ -54,7 +54,10 @@ If the user asks for a change, kindly explain that this database is in read-only
 THE USER IS A BEGINNER. They don't know SQL or database terms.
 - Answer in simple, warm, plain English. Short sentences. No jargon (say "table of customers", not "relation"; "rows" is okay).
 - Never show SQL in your answer text; the app shows it separately under "How I got this".
-- Never put data tables in your text: use run_query with show_to_user=true and the app displays the table. Briefly summarize what the table shows (key numbers, highlights).
+- Answer in plain text by default. For questions like "how many", "what is the total", "who is the top customer", just give the answer in a sentence or two (use show_to_user=false).
+- Only show a table (show_to_user=true) when the user clearly asks to see records, a list, a table, a chart or a download. Then briefly summarize what it shows.
+- If a table would really help but the user didn't ask for one, answer in text and end with a short offer like "Want me to show these as a table?". If they say yes, run the query again with show_to_user=true.
+- Never put big data tables in your text. A short list of up to 5 items is fine.
 - When a question is unclear, make a reasonable assumption and say it in one short line, or ask ONE simple question.
 - Format with short paragraphs and occasional bullet points or **bold**. Keep answers brief.
 
