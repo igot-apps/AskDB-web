@@ -549,16 +549,27 @@
   // ---------- Settings ----------
   function openSettings() {
     $('s-key').value = state.settings.apiKey || '';
-    $('s-model').value = state.settings.model || '';
+    const cur = state.settings.model || '';
+    const known = MODELS.some(m => m.id === cur);
+    $('s-model-pick').innerHTML = MODELS.map(m => `<option value="${esc(m.id)}">${esc(m.name)} (${esc(m.cost)}) - ${esc(m.desc)}</option>`).join('')
+      + `<option value="__other">Other model (type its name)</option>`;
+    $('s-model-pick').value = known ? cur : '__other';
+    $('s-model').value = known ? '' : cur;
+    $('s-model').classList.toggle('hidden', known);
     $('s-remove').classList.toggle('hidden', !state.conn);
     setMsg($('s-msg'));
     show($('settings'));
   }
   $('settings-btn').onclick = openSettings;
+  $('s-model-pick').onchange = () => {
+    const other = $('s-model-pick').value === '__other';
+    $('s-model').classList.toggle('hidden', !other);
+    if (other) $('s-model').focus();
+  };
   $('s-cancel').onclick = () => hide($('settings'));
   $('settings').onclick = (e) => { if (e.target === $('settings')) hide($('settings')); };
   $('s-save').onclick = async () => {
-    const apiKey = $('s-key').value.trim(), model = $('s-model').value.trim();
+    const apiKey = $('s-key').value.trim(), model = $('s-model-pick').value === '__other' ? $('s-model').value.trim() : $('s-model-pick').value;
     if (!apiKey) return setMsg($('s-msg'), 'The OpenRouter key cannot be empty.', 'error');
     if (!model) return setMsg($('s-msg'), 'Please enter a model name.', 'error');
     state.settings = (await window.api.saveSettings({ apiKey, model })).data;

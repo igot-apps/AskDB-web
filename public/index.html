@@ -97,7 +97,8 @@
     <label>OpenRouter key</label>
     <input id="s-key" type="password" autocomplete="off">
     <label>AI model <span class="muted">(leave as is if unsure)</span></label>
-    <input id="s-model" type="text">
+    <select id="s-model-pick"></select>
+    <input id="s-model" type="text" class="hidden" placeholder="e.g. mistralai/mistral-large" style="margin-top:8px">
     <div id="s-msg" class="msg"></div>
     <div class="row">
       <button id="s-remove" class="btn danger-ghost">Remove current database</button>
