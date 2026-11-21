@@ -1,6 +1,6 @@
 // Web version of the app's "window.api" bridge.
 // Settings, keys, database links and chat history stay in this browser (localStorage).
-// Database work goes through the /api/db Netlify Function.
+// Database work goes through the /api/db server endpoint.
 (function () {
   const SETTINGS = 'askdb-settings';
   const PASS = 'askdb-password';
